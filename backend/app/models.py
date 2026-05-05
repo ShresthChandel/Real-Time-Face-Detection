@@ -14,4 +14,4 @@ class RoiEvent(Base):
     w = Column(Integer, nullable=False)
     h = Column(Integer, nullable=False)
     confidence = Column(Float, nullable=True)
-    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
