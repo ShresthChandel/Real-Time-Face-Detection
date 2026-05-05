@@ -9,7 +9,7 @@ A containerized backend API and frontend dashboard for real-time face detection,
 3. Run the following command from the root of the project:
 
 ```bash
-docker-compose up --build
+docker compose up --build
 ```
 
 4. Once the containers are running, open your browser and navigate to:
@@ -34,5 +34,5 @@ The system strictly follows a clean, 5-layer separation of concerns:
 
 - **No OpenCV:** Accomplished via Google's MediaPipe for fast CPU-based detection, combined with Python's native Pillow (PIL) for image manipulation.
 - **Strictly 3 Endpoints:** The API surface area is minimal and correct.
-- **Containerized:** Fully deployable via a single `docker-compose up` command.
+- **Containerized:** Fully deployable via a single `docker compose up` command.
 - **Real-Time Data:** Utilizes WebSockets for lowest latency input, and `multipart/x-mixed-replace` for robust browser-native stream rendering.
