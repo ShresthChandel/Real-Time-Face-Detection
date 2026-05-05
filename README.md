@@ -36,3 +36,15 @@ The system strictly follows a clean, 5-layer separation of concerns:
 - **Strictly 3 Endpoints:** The API surface area is minimal and correct.
 - **Containerized:** Fully deployable via a single `docker compose up` command.
 - **Real-Time Data:** Utilizes WebSockets for lowest latency input, and `multipart/x-mixed-replace` for robust browser-native stream rendering.
+
+## Architecture Diagram
+
+![System Architecture Container Diagram](./architecture.png)
+
+## AI Attestation
+
+As permitted by the assignment guidelines, I utilized an AI pair-programmer (Gemini) to assist with the development of this project.
+
+As the primary architect and developer, I designed the system constraints, built the entire React frontend and glassmorphic UI, modeled the PostgreSQL database schema, and orchestrated the Docker Compose infrastructure to ensure clean separation of concerns.
+
+I leveraged the AI assistant specifically to navigate the complexities of the Python backend logic. Specifically, I used the AI to help me quickly scaffold the `FastAPI` asynchronous WebSocket pipeline, and to properly implement the `MediaPipe BlazeFace` bounding-box mathematics since OpenCV could not be used. This allowed me to focus on the high-level system design and frontend execution while delegating the dense Python computer-vision syntax to the assistant.
