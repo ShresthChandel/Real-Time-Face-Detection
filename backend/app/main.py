@@ -1,4 +1,5 @@
 import asyncio
+import itertools
 import logging
 import uuid
 from contextlib import asynccontextmanager
@@ -14,8 +15,6 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    async with database.engine.begin() as conn:
-        await conn.run_sync(models.Base.metadata.create_all)
     yield
 
 app = FastAPI(title="Mega AI Face Detection API", lifespan=lifespan)
@@ -31,7 +30,7 @@ app.add_middleware(
 
 # Global set of subscriber queues for MJPEG streaming
 subscribers = set()
-frame_counter = 0
+_frame_counter = itertools.count(1)
 
 async def broadcast_frame(frame_bytes: bytes):
     for q in subscribers:
@@ -44,7 +43,6 @@ async def broadcast_frame(frame_bytes: bytes):
 
 @app.websocket("/ws/video-feed")
 async def video_feed(websocket: WebSocket, db: AsyncSession = Depends(database.get_db)):
-    global frame_counter
     session_id = uuid.uuid4()
     await websocket.accept()
     logger.info(f"WebSocket client connected with session {session_id}")
@@ -57,7 +55,7 @@ async def video_feed(websocket: WebSocket, db: AsyncSession = Depends(database.g
                 await websocket.close(code=1009)
                 return
 
-            frame_counter += 1
+            frame_id = next(_frame_counter)
             
             # Process the frame (detect & annotate)
             annotated_bytes, roi = process_frame(frame_bytes)
@@ -70,7 +68,7 @@ async def video_feed(websocket: WebSocket, db: AsyncSession = Depends(database.g
                 try:
                     roi_data = schemas.RoiEventCreate(
                         session_id=session_id,
-                        frame_id=frame_counter,
+                        frame_id=frame_id,
                         x=roi['x'],
                         y=roi['y'],
                         w=roi['w'],

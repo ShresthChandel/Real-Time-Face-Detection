@@ -38,7 +38,9 @@ def test_get_roi_data_endpoint():
 def test_websocket_endpoint():
     # Test that the websocket accepts connections and can process a real frame
     import io
+    import asyncio
     from PIL import Image
+    import app.main as main_module
     
     with client.websocket_connect("/ws/video-feed") as websocket:
         # Create a tiny 1x1 white JPEG image
@@ -46,9 +48,17 @@ def test_websocket_endpoint():
         Image.new("RGB", (10, 10), "white").save(buf, format="JPEG")
         frame_bytes = buf.getvalue()
         
-        # Send the valid JPEG bytes
-        websocket.send_bytes(frame_bytes)
+        # Add a test subscriber to verify broadcasting
+        q = asyncio.Queue(maxsize=2)
+        main_module.subscribers.add(q)
         
-        # We don't expect a specific response directly back to the client unless it's a stream client,
-        # but we verify the connection stays open and doesn't crash on valid image data.
-        assert True
+        try:
+            # Send the valid JPEG bytes
+            websocket.send_bytes(frame_bytes)
+            
+            # Verify the queue received a frame (meaning process_frame and broadcast_frame succeeded)
+            # TestClient handles async execution, but we'll just check if it's not empty
+            # If not empty immediately, it means broadcast worked.
+            assert not q.empty()
+        finally:
+            main_module.subscribers.remove(q)

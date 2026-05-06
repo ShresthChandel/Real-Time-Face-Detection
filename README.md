@@ -66,6 +66,12 @@ The system is designed with a **clean, 5-layer separation of concerns** and is c
    - Open your browser and navigate to **http://localhost:3000**
    - *Note: Ensure your browser grants webcam permissions when prompted.*
 
+### Database Migrations
+In the Docker environment, Alembic migrations run automatically on startup. If you need to run them manually for local development outside Docker, use:
+```bash
+alembic upgrade head
+```
+
 ---
 
 ## 🏗 Architecture
