@@ -29,7 +29,11 @@ export function useRoiData() {
     fetchData();
 
     // Poll every 1 second
-    const interval = setInterval(fetchData, 1000);
+    const interval = setInterval(() => {
+      if (!document.hidden) {
+        fetchData();
+      }
+    }, 1000);
 
     return () => clearInterval(interval);
   }, []);

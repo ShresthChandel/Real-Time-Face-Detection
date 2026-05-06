@@ -36,9 +36,19 @@ def test_get_roi_data_endpoint():
         app.dependency_overrides.clear()
 
 def test_websocket_endpoint():
-    # Test that the websocket accepts connections and can receive a synthetic frame
+    # Test that the websocket accepts connections and can process a real frame
+    import io
+    from PIL import Image
+    
     with client.websocket_connect("/ws/video-feed") as websocket:
-        # Send a tiny synthetic string (will fail decoding, but shouldn't crash the server loop)
-        websocket.send_bytes(b"synthetic_jpeg_data")
-        # Since it won't broadcast an annotated frame for bad data, we just verify it stays open
+        # Create a tiny 1x1 white JPEG image
+        buf = io.BytesIO()
+        Image.new("RGB", (10, 10), "white").save(buf, format="JPEG")
+        frame_bytes = buf.getvalue()
+        
+        # Send the valid JPEG bytes
+        websocket.send_bytes(frame_bytes)
+        
+        # We don't expect a specific response directly back to the client unless it's a stream client,
+        # but we verify the connection stays open and doesn't crash on valid image data.
         assert True

@@ -1,4 +1,7 @@
 import asyncio
+import logging
+import uuid
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -7,7 +10,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from . import models, schemas, crud, database
 from .frame_processor import process_frame
 
-app = FastAPI(title="Mega AI Face Detection API")
+logger = logging.getLogger(__name__)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    async with database.engine.begin() as conn:
+        await conn.run_sync(models.Base.metadata.create_all)
+    yield
+
+app = FastAPI(title="Mega AI Face Detection API", lifespan=lifespan)
 
 # Allow CORS for frontend
 app.add_middleware(
@@ -22,11 +33,6 @@ app.add_middleware(
 subscribers = set()
 frame_counter = 0
 
-@app.on_event("startup")
-async def startup():
-    async with database.engine.begin() as conn:
-        await conn.run_sync(models.Base.metadata.create_all)
-
 async def broadcast_frame(frame_bytes: bytes):
     for q in subscribers:
         try:
@@ -39,11 +45,18 @@ async def broadcast_frame(frame_bytes: bytes):
 @app.websocket("/ws/video-feed")
 async def video_feed(websocket: WebSocket, db: AsyncSession = Depends(database.get_db)):
     global frame_counter
+    session_id = uuid.uuid4()
     await websocket.accept()
+    logger.info(f"WebSocket client connected with session {session_id}")
     try:
         while True:
             # Receive JPEG bytes from frontend
             frame_bytes = await websocket.receive_bytes()
+            if len(frame_bytes) > 2 * 1024 * 1024:  # 2MB cap
+                logger.warning(f"Frame exceeded 2MB limit in session {session_id}")
+                await websocket.close(code=1009)
+                return
+
             frame_counter += 1
             
             # Process the frame (detect & annotate)
@@ -54,20 +67,24 @@ async def video_feed(websocket: WebSocket, db: AsyncSession = Depends(database.g
             
             # Store ROI in database
             if roi:
-                roi_data = schemas.RoiEventCreate(
-                    frame_id=frame_counter,
-                    x=roi['x'],
-                    y=roi['y'],
-                    w=roi['w'],
-                    h=roi['h'],
-                    confidence=roi['confidence']
-                )
-                await crud.create_roi_event(db, roi_data)
+                try:
+                    roi_data = schemas.RoiEventCreate(
+                        session_id=session_id,
+                        frame_id=frame_counter,
+                        x=roi['x'],
+                        y=roi['y'],
+                        w=roi['w'],
+                        h=roi['h'],
+                        confidence=roi['confidence']
+                    )
+                    await crud.create_roi_event(db, roi_data)
+                except Exception as e:
+                    logger.error(f"Error saving ROI to DB: {e}")
                 
     except WebSocketDisconnect:
-        print("WebSocket client disconnected")
+        logger.info(f"WebSocket client disconnected for session {session_id}")
     except Exception as e:
-        print(f"Error in websocket loop: {e}")
+        logger.error(f"Error in websocket loop for session {session_id}: {e}")
 
 async def mjpeg_generator():
     q = asyncio.Queue(maxsize=2)
@@ -85,6 +102,6 @@ async def stream():
     return StreamingResponse(mjpeg_generator(), media_type="multipart/x-mixed-replace; boundary=frame")
 
 @app.get("/roi-data", response_model=list[schemas.RoiEvent])
-async def get_roi_data(limit: int = 50, db: AsyncSession = Depends(database.get_db)):
-    events = await crud.get_roi_events(db, limit=limit)
+async def get_roi_data(limit: int = 50, offset: int = 0, db: AsyncSession = Depends(database.get_db)):
+    events = await crud.get_roi_events(db, limit=limit, offset=offset)
     return events

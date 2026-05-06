@@ -36,10 +36,10 @@ export function RoiTable() {
                   <div className="confidence-bar">
                     <div 
                       className="confidence-level" 
-                      style={{ width: `${(row.confidence * 100).toFixed(0)}%` }} 
+                      style={{ width: `${((row.confidence ?? 0) * 100).toFixed(0)}%` }} 
                     />
                   </div>
-                  <span>{(row.confidence * 100).toFixed(1)}%</span>
+                  <span>{((row.confidence ?? 0) * 100).toFixed(1)}%</span>
                 </div>
               </td>
               <td>{new Date(row.created_at).toLocaleTimeString()}</td>

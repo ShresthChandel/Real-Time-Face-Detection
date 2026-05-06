@@ -3,6 +3,7 @@ from datetime import datetime
 from uuid import UUID
 
 class RoiEventBase(BaseModel):
+    session_id: UUID
     frame_id: int
     x: int
     y: int

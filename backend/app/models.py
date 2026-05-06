@@ -8,6 +8,7 @@ class RoiEvent(Base):
     __tablename__ = "roi_events"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    session_id = Column(UUID(as_uuid=True), nullable=False, index=True)
     frame_id = Column(BigInteger, nullable=False)
     x = Column(Integer, nullable=False)
     y = Column(Integer, nullable=False)

@@ -1,6 +1,9 @@
 import io
+import logging
 from PIL import Image, ImageDraw
 from .face_detector import detector
+
+logger = logging.getLogger(__name__)
 
 def process_frame(frame_bytes: bytes):
     """
@@ -33,5 +36,5 @@ def process_frame(frame_bytes: bytes):
         
     except Exception as e:
         # If any error occurs (e.g., bad image bytes), return original bytes and no ROI
-        print(f"Error processing frame: {e}")
+        logger.error(f"Error processing frame: {e}")
         return frame_bytes, None
