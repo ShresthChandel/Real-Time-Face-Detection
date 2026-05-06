@@ -18,7 +18,7 @@
 <div align="center">
   <img src="https://img.shields.io/badge/Python-3.11-blue.svg" alt="Python Version">
   <img src="https://img.shields.io/badge/FastAPI-0.104.1-009688.svg" alt="FastAPI">
-  <img src="https://img.shields.io/badge/React-18-61DAFB.svg" alt="React">
+  <img src="https://img.shields.io/badge/React-19-61DAFB.svg" alt="React">
   <img src="https://img.shields.io/badge/PostgreSQL-16-336791.svg" alt="Postgres">
   <img src="https://img.shields.io/badge/Docker-Enabled-2496ED.svg" alt="Docker">
 </div>
@@ -69,6 +69,7 @@ The system is designed with a **clean, 5-layer separation of concerns** and is c
 ### Database Migrations
 In the Docker environment, Alembic migrations run automatically on startup. If you need to run them manually for local development outside Docker, use:
 ```bash
+cd backend
 alembic upgrade head
 ```
 
@@ -82,7 +83,7 @@ The system strictly follows a clean separation of concerns across 5 distinct lay
 
 1. **Layer 1 — Client (React):** Captures webcam feed, sends binary blobs via WebSocket, receives the MJPEG stream, and polls REST API for historical data.
 2. **Layer 2 — Gateway (FastAPI):** Exposes strictly 3 endpoints. Handles WebSocket lifecycle, CORS, and request routing.
-3. **Layer 3 — Processing Core:** Pure Python pipeline. Decodes bytes $\rightarrow$ PIL Image $\rightarrow$ MediaPipe Detection $\rightarrow$ Pillow Annotation $\rightarrow$ JPEG encoding.
+3. **Layer 3 — Processing Core:** Pure Python pipeline. Decodes bytes → PIL Image → MediaPipe Detection → Pillow Annotation → JPEG encoding.
 4. **Layer 4 — Persistence (PostgreSQL):** Relational storage mapping frame IDs to bounding box coordinates.
 5. **Layer 5 — Infrastructure (Docker):** Alpine-based containers orchestrated via `docker-compose.yml`.
 
@@ -103,7 +104,7 @@ The backend strictly exposes the requested **3 endpoints**.
 - **Behavior:** Yields a continuous stream of annotated MJPEG frames.
 
 ### 3. Serve ROI Data
-`GET /roi-data?limit=50`
+`GET /roi-data?limit=50&offset=0`
 - **Response:** JSON array of ROI objects.
 - **Behavior:** Queries the PostgreSQL database, ordered by latest.
 
@@ -117,6 +118,7 @@ The backend strictly exposes the requested **3 endpoints**.
     "h": 150,
     "confidence": 0.98,
     "id": "uuid-v4",
+    "session_id": "uuid-v4",
     "created_at": "2026-05-05T12:00:00Z"
   }
 ]
@@ -131,6 +133,7 @@ The backend strictly exposes the requested **3 endpoints**.
 | Column | Type | Constraints | Description |
 | :--- | :--- | :--- | :--- |
 | `id` | `UUID` | Primary Key | Auto-generated UUIDv4 |
+| `session_id` | `UUID` | Indexed, Not Null | Grouping UUID for distinct camera streaming sessions |
 | `frame_id` | `BIGINT` | Not Null | Monotonic counter per stream session |
 | `x`, `y`, `w`, `h` | `INT` | Not Null | Bounding box pixel coordinates |
 | `confidence` | `FLOAT` | Nullable | Detection confidence score (0.0 - 1.0) |
@@ -164,15 +167,15 @@ docker compose exec backend pytest -v
 | **API Contracts** | Proper HTTP semantics, WebSocket utilization, and Pydantic validation. |
 | **Architecture** | Highly decoupled. Processing pipeline can be tested entirely independent of the FastAPI routing layer. |
 | **DB Schema** | Sensible relational modelling with appropriate data types and indices (`created_at`). |
-| **Error Handling** | Pipeline catches binary decode errors. WS handles client disconnects gracefully. |
-| **Security** | Strict CORS policy applied (`localhost:3000`), parameterized SQL queries via SQLAlchemy to prevent injection. |
+| **Error Handling** | Pipeline catches binary decode errors. WS handles client disconnects gracefully and isolates DB failure exceptions to keep streams alive. |
+| **Security** | Strict CORS policy applied (`localhost:3000`), parameterized SQL queries via SQLAlchemy to prevent injection, WS frame payload size caps (2MB limit), and fully externalized env-var credentials. |
 | **Testing** | Automated `pytest` suite testing core logic and API integrations. |
 
 ---
 
 ## 🤖 AI Attestation
 
-As permitted by the assignment guidelines, I utilized an AI pair-programmer (Google Gemini) to assist with the development of this project.
+As permitted by the assignment guidelines, I utilized AI pair-programmers (Claude/Anthropic + Gemini) to assist with the development of this project.
 
 As the primary architect and developer, I established the system constraints, designed the overall architecture, modeled the PostgreSQL schema, built the complete React frontend UI, and orchestrated the Docker Compose infrastructure to ensure clean separation of concerns.
 
